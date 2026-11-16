@@ -1,7 +1,29 @@
-﻿namespace Knjiznica
+﻿using System.Numerics;
+
+namespace Knjiznica
 {
     internal class Program
     {
+        struct Borrow()
+        {
+            Guid id;
+            string title;
+            string author;
+            DateOnly borrowDay;
+            DateOnly returnDay;
+            int lateDays;
+            int lateFee;
+        };
+
+        struct Member
+        {
+            Guid id;
+            string name;
+            string surname;
+            DateOnly birthDay;
+            Vector<Borrow> borrows;
+        };
+
         static void PrintMembersMenu()
         {
             Console.WriteLine("1 - Unos novog člana");
