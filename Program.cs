@@ -12,7 +12,7 @@ namespace Knjiznica
             public string title;
             public string author;
             public DateOnly borrowDay;
-            public DateOnly returnDay;
+            public DateOnly? returnDay;
             public int lateDays;
             public int lateFee;
         };
@@ -59,7 +59,7 @@ namespace Knjiznica
             }
         }
 
-        static void UpdateMember(List<Member> members, string id, string name, string surname, string date_string)
+        static void UpdateMember(List<Member> members, string id, string name, string surname, DateOnly? date)
         {
             int index = members.FindIndex(o => o.id == new Guid(id));
             if (index != -1)
@@ -76,23 +76,9 @@ namespace Knjiznica
                     member.surname = surname;
                 }
 
-                if (date_string != "0")
+                if (date != null)
                 {
-                    DateOnly date = new DateOnly();
-                    try
-                    {
-                        date = DateOnly.ParseExact(date_string, "YYYY-MM-DD");
-                    }
-
-                    catch (FormatException ex)
-                    {
-                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
-                    }
-
-                    finally
-                    {
-                        member.birthDay = date;
-                    }
+                    member.birthDay = (DateOnly)date;
                 }
             }
         }
@@ -176,13 +162,75 @@ namespace Knjiznica
                     Console.Write("Unesi novi datum (YYYY-MM-DD) ili 0 za ostaviti staro: ");
                     string date_string = Console.ReadLine();
 
-                    UpdateMember(members, id, name, surname, date_string);
+                    if (date_string != "0")
+                    {
+                        DateOnly date = new DateOnly();
+                        try
+                        {
+                            date = DateOnly.ParseExact(date_string, "YYYY-MM-DD");
+                        }
 
+                        catch (FormatException ex)
+                        {
+                            Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                        }
+
+                        finally
+                        {
+                            UpdateMember(members, id, name, surname, date);
+                        }
+                    }
+
+                    else
+                    {
+                        UpdateMember(members, id, name, surname, null);
+                    }
                 }
 
                 else if (user_input == "4")
                 {
+                    members.Sort((a, b) => a.name.CompareTo(b.name));
 
+                    Console.WriteLine("Ispis članova abecedno: ");
+                    foreach (Member member in members)
+                    {
+                        Console.WriteLine("[" + member.id + "} " + member.surname + ", " + member.name +
+                                          " (" + (DateTime.Now.Year - member.birthDay.Year) + ") - broj posudbi: "
+                                          + member.borrows.Count);
+                    }
+
+                    Console.WriteLine("Članovi mlađi od 18: ");
+                    foreach (Member member in members)
+                    {
+                        if (DateTime.Now.Year - member.birthDay.Year <= 18)
+                        {
+                            Console.WriteLine("[" + member.id + "} " + member.surname + ", " + member.name +
+                                              " (" + (DateTime.Now.Year - member.birthDay.Year) + ") - broj posudbi: "
+                                              + member.borrows.Count);
+
+                        }
+                    }
+
+                    Console.WriteLine("Svi članovi s barem jednom ne vraćenom knjigom: ");
+                    foreach (Member member in members)
+                    {
+                        bool flag = false;
+                        foreach (Borrow borrow in member.borrows)
+                        {
+                            if (borrow.returnDay == null)
+                            {
+                                flag = true;
+                                break;
+                            }
+                        }
+
+                        if (flag == true)
+                        {
+                            Console.WriteLine("[" + member.id + "} " + member.surname + ", " + member.name +
+                                              " (" + (DateTime.Now.Year - member.birthDay.Year) + ") - broj posudbi: "
+                                              + member.borrows.Count);
+                        }
+                    }
                 }
 
                 else
