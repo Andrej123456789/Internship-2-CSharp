@@ -38,9 +38,9 @@ namespace Knjiznica
             members.Add(member);
         }
 
-        static void RemoveMember(List<Member> members, string input, char choice)
+        static void RemoveMember(List<Member> members, string input, string choice)
         {
-            if (choice == 1)
+            if (choice == "1")
             {
                 int index = members.FindIndex(o => o.id == new Guid(input));
                 if (index != -1)
@@ -93,9 +93,10 @@ namespace Knjiznica
 
             while (true)
             {
-                Console.Write("\n[Izbornik članova] Odabir: ");
+                Console.Write("[Izbornik članova] Odabir: ");
                 string user_input = Console.ReadLine();
 
+                Console.Write("\n");
                 if (user_input == "0")
                 {
                     break;
@@ -112,10 +113,18 @@ namespace Knjiznica
                     Console.Write("Unesi datum (YYYY-MM-DD): ");
                     string date_string = Console.ReadLine();
 
+                    Console.Write("Želiš li dodati novog korisnika " + name + " (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        continue;
+                    }
+
                     DateOnly date = new DateOnly();
                     try
                     {
-                        date = DateOnly.ParseExact(date_string, "YYYY-MM-DD");
+                        date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
                     }
 
                     catch (FormatException ex)
@@ -127,17 +136,28 @@ namespace Knjiznica
                     {
                         AddMember(members, name, surname, date, null);
                     }
+
+                    Console.WriteLine("Korisnik " + name + " uspješno dodan!\n");
                 }
 
                 else if (user_input == "2")
                 {
                     Console.Write("1 - po ID-u | 2 - po imenu i prezimenu ([prezime] [ime])");
-                    char choice = Convert.ToChar(Console.ReadLine());
+                    string choice = Console.ReadLine();
 
                     Console.Write("Unesi: ");
                     string input = Console.ReadLine();
 
-                    if (choice == 1 || choice == 2)
+                    Console.Write("Jeste li sigurni da želite izbrisati korisnika " + input + " (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        Console.Write("Odustajem...");
+                        continue;
+                    }
+
+                    if (choice == "1" || choice == "2")
                     {
                         RemoveMember(members, input, choice);
                     }
@@ -146,6 +166,8 @@ namespace Knjiznica
                     {
                         Console.WriteLine("Krivi odabir!");
                     }
+
+                    Console.WriteLine("Korisnik " + input + " uspješno izbrisan!\n");
                 }
 
                 else if (user_input == "3")
@@ -162,12 +184,21 @@ namespace Knjiznica
                     Console.Write("Unesi novi datum (YYYY-MM-DD) ili 0 za ostaviti staro: ");
                     string date_string = Console.ReadLine();
 
+                    Console.Write("Želite li urediti korisnika " + id + " (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        Console.WriteLine("Odustajem...");
+                        continue;
+                    }
+
                     if (date_string != "0")
                     {
                         DateOnly date = new DateOnly();
                         try
                         {
-                            date = DateOnly.ParseExact(date_string, "YYYY-MM-DD");
+                            date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
                         }
 
                         catch (FormatException ex)
@@ -185,6 +216,8 @@ namespace Knjiznica
                     {
                         UpdateMember(members, id, name, surname, null);
                     }
+
+                    Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
                 }
 
                 else if (user_input == "4")
@@ -194,24 +227,24 @@ namespace Knjiznica
                     Console.WriteLine("Ispis članova abecedno: ");
                     foreach (Member member in members)
                     {
-                        Console.WriteLine("[" + member.id + "} " + member.surname + ", " + member.name +
+                        Console.WriteLine("[" + member.id + "] " + member.surname + ", " + member.name +
                                           " (" + (DateTime.Now.Year - member.birthDay.Year) + ") - broj posudbi: "
                                           + member.borrows.Count);
                     }
 
-                    Console.WriteLine("Članovi mlađi od 18: ");
+                    Console.WriteLine("\nČlanovi mlađi od 18: ");
                     foreach (Member member in members)
                     {
                         if (DateTime.Now.Year - member.birthDay.Year <= 18)
                         {
-                            Console.WriteLine("[" + member.id + "} " + member.surname + ", " + member.name +
+                            Console.WriteLine("[" + member.id + "] " + member.surname + ", " + member.name +
                                               " (" + (DateTime.Now.Year - member.birthDay.Year) + ") - broj posudbi: "
                                               + member.borrows.Count);
 
                         }
                     }
 
-                    Console.WriteLine("Svi članovi s barem jednom ne vraćenom knjigom: ");
+                    Console.WriteLine("\nSvi članovi s barem jednom ne vraćenom knjigom: ");
                     foreach (Member member in members)
                     {
                         bool flag = false;
@@ -226,16 +259,18 @@ namespace Knjiznica
 
                         if (flag == true)
                         {
-                            Console.WriteLine("[" + member.id + "} " + member.surname + ", " + member.name +
+                            Console.WriteLine("[" + member.id + "] " + member.surname + ", " + member.name +
                                               " (" + (DateTime.Now.Year - member.birthDay.Year) + ") - broj posudbi: "
                                               + member.borrows.Count);
                         }
                     }
+
+                    Console.Write("\n");
                 }
 
                 else
                 {
-                    Console.WriteLine("Krivi unos!");
+                    Console.WriteLine("Krivi unos!\n");
                 }
             }
         }
@@ -250,49 +285,50 @@ namespace Knjiznica
             Console.WriteLine("6 - Izvještaji i analize");
             Console.WriteLine("0 - povratak na glavni izbornik");
 
-            bool flag = true;
-            while (flag)
+            while (true)
             {
-                Console.Write("\n[Izbornik posudbi] Odabir: ");
+                Console.Write("[Izbornik posudbi] Odabir: ");
+                string user_input = Console.ReadLine();
 
-                char user_input = '\0';
-                try
+                Console.Write("\n");
+                if (user_input == "0")
                 {
-                    user_input = Convert.ToChar(Console.ReadLine());
+                    break;
                 }
 
-                catch (Exception ex)
+                else if (user_input == "1")
                 {
 
                 }
 
-                switch (user_input)
+                else if (user_input == "2")
                 {
-                    case '0':
-                        flag = false;
-                        break;
 
-                    case '1':
-                        break;
+                }
 
-                    case '2':
-                        break;
+                else if (user_input == "3")
+                {
+                    
+                }
 
-                    case '3':
-                        break;
+                else if (user_input == "4")
+                {
 
-                    case '4':
-                        break;
+                }
 
-                    case '5':
-                        break;
+                else if (user_input == "5")
+                {
+                    
+                }
 
-                    case '6':
-                        break;
+                else if (user_input == "6")
+                {
 
-                    default:
-                        Console.WriteLine("Krivi unos!");
-                        break;
+                }
+
+                else
+                {
+                    Console.WriteLine("Krivi unos!\n");
                 }
             }
         }
@@ -301,36 +337,28 @@ namespace Knjiznica
         {
             while (true)
             {
-                Console.Write("\n[Glavni izbornik] Odabir: ");
+                Console.Write("[Glavni izbornik] Odabir: ");
+                string user_input = Console.ReadLine();
 
-                char user_input = '\0';
-                try
+                Console.Write("\n");
+                if (user_input == "0")
                 {
-                    user_input = Convert.ToChar(Console.ReadLine());
+                    System.Environment.Exit(0);
                 }
 
-                catch (Exception ex)
+                else if (user_input == "1")
                 {
-                    
+                    PrintMembersMenu(members);
                 }
 
-                switch (user_input)
+                else if (user_input == "2")
                 {
-                    case '0':
-                        System.Environment.Exit(0);
-                        break;
+                    PrintBorrowMenu();
+                }
 
-                    case '1':
-                        PrintMembersMenu(members);
-                        break;
-
-                    case '2':
-                        PrintBorrowMenu();
-                        break;
-
-                    default:
-                        Console.WriteLine("Krivi unos!");
-                        break;
+                else
+                {
+                    Console.WriteLine("Krivi unos!\n");
                 }
             }
         }
@@ -342,7 +370,7 @@ namespace Knjiznica
             AddMember(members, "Kruska", "Voce", new DateOnly(2000, 4, 1), null);
             AddMember(members, "Bundeva", "Povrce", new DateOnly(2000, 6, 2), null);
 
-            Console.WriteLine("Evidencija posudbi u knjižnici");
+            Console.WriteLine("Evidencija posudbi u knjižnici\n");
 
             Console.WriteLine("1 - Članovi");
             Console.WriteLine("2 - Posudbe");
