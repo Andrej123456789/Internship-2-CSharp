@@ -1,8 +1,4 @@
-﻿using System.Diagnostics.Metrics;
-using System.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
-namespace Knjiznica
+﻿namespace Knjiznica
 {
     internal class Program
     {
@@ -28,12 +24,14 @@ namespace Knjiznica
 
         static void AddMember(List<Member> members, string name, string surname, DateOnly date, List<Borrow> borrows)
         {
-            Member member = new Member();
-            member.id = Guid.NewGuid();
-            member.name = name;
-            member.surname = surname;
-            member.birthDay = date;
-            member.borrows = borrows ?? new List<Borrow>();
+            Member member = new Member
+            {
+                id = Guid.NewGuid(),
+                name = name,
+                surname = surname,
+                birthDay = date,
+                borrows = borrows ?? new List<Borrow>()
+            };
 
             members.Add(member);
         }
@@ -72,7 +70,17 @@ namespace Knjiznica
 
         static int UpdateMember(List<Member> members, string id, string name, string surname, DateOnly? date)
         {
-            int index = members.FindIndex(o => o.id == new Guid(id));
+            int index = -1;
+            try
+            {
+                index = members.FindIndex(o => o.id == new Guid(id));
+            }
+
+            catch
+            {
+                return 1;
+            }
+
             if (index != -1)
             {
                 Member member = members[index];
@@ -92,6 +100,7 @@ namespace Knjiznica
                     member.birthDay = (DateOnly)date;
                 }
 
+                members[index] = member;
                 return 0;
             }
 
@@ -109,28 +118,48 @@ namespace Knjiznica
             return lateDays * 0.50;
         }
 
-        static void AddBorrow(List<Member> members, string member, string title, string author, DateOnly date)
+        static int AddBorrow(List<Member> members, string member, string title, string author, DateOnly date)
         {
             Guid.TryParse(member, out Guid guid);
             int index = members.FindIndex(o => o.id == guid || o.name == member);
 
             if (index != -1)
             {
-                Borrow borrow = new Borrow();
-                borrow.id = Guid.NewGuid();
-                borrow.title = title;
-                borrow.author = author;
-                borrow.borrowDay = date;
-                borrow.returnDay = null;
+                Borrow borrow = new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = title,
+                    author = author,
+                    borrowDay = date,
+                    returnDay = null
+                };
+
                 borrow.lateDays = CalculateLateDays(borrow.borrowDay, borrow.returnDay);
                 borrow.lateFee = CalculateLateFee(borrow.lateDays);
 
                 members[index].borrows.Add(borrow);
+                return 0;
+            }
+
+            else
+            {
+                return 1;
             }
         }
+
         static (int, Borrow?) ReturnBorrow(List<Member> members, string id, DateOnly date)
         {
-            Guid borrowId = new Guid(id);
+            Guid borrowId = Guid.NewGuid(); 
+            try
+            {
+                borrowId = new Guid(id);
+            }
+
+            catch
+            {
+                return (1, null);
+            }
+
             var result = members
                 .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
                 .FirstOrDefault(x => x.borrow.id == borrowId);
@@ -160,7 +189,17 @@ namespace Knjiznica
 
         static int RemoveBorrow(List<Member> members, string input)
         {
-            Guid borrowId = new Guid(input);
+            Guid borrowId = Guid.NewGuid();
+            try
+            {
+                borrowId = new Guid(input);
+            }
+
+            catch
+            {
+                return 1;
+            }
+
             var result = members
                 .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
                 .FirstOrDefault(x => x.borrow.id == borrowId);
@@ -197,7 +236,7 @@ namespace Knjiznica
                                 fee = Convert.ToInt32(input); 
                             }
 
-                            catch (Exception ex)
+                            catch
                             {
                                 return 1;
                             }
@@ -216,7 +255,17 @@ namespace Knjiznica
 
         static int UpdateBorrow(List<Member> members, string id, string title, string author, DateOnly? borrowDate, DateOnly? returnDate)
         {
-            Guid borrowId = new Guid(id);
+            Guid borrowId = Guid.NewGuid();
+            try
+            {
+                borrowId = new Guid(id);
+            }
+
+            catch
+            {
+                return 1;
+            }
+
             var result = members
                 .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
                 .FirstOrDefault(x => x.borrow.id == borrowId);
@@ -226,8 +275,17 @@ namespace Knjiznica
                 var member = result.member;
                 var borrow = result.borrow;
 
-                borrow.title = title;
-                borrow.author = author;
+                int index = member.borrows.FindIndex(b => b.id == borrowId);
+
+                if (title != "0")
+                {
+                    borrow.title = title;
+                }
+
+                if (author != "0")
+                {
+                    borrow.author = author;
+                }
 
                 if (borrowDate != null)
                 {
@@ -239,6 +297,7 @@ namespace Knjiznica
                     borrow.returnDay = (DateOnly)returnDate;
                 }
 
+                member.borrows[index] = borrow;
                 return 0;
             }
 
@@ -278,20 +337,21 @@ namespace Knjiznica
 
                 else if (user_input == "1")
                 {
-                    Console.Write("Unesi ime: ");
+                    Console.Write("Unesite ime: ");
                     string name = Console.ReadLine();
 
-                    Console.Write("Unesi prezime: ");
+                    Console.Write("Unesite prezime: ");
                     string surname = Console.ReadLine();
 
-                    Console.Write("Unesi datum (YYYY-MM-DD): ");
+                    Console.Write("Unesite datum (YYYY-MM-DD): ");
                     string date_string = Console.ReadLine();
 
-                    Console.Write("Želiš li dodati novog korisnika " + name + " (y ili n): ");
+                    Console.Write("Želite li dodati novog člana " + name + " (y ili n): ");
                     string confirmation = Console.ReadLine();
 
                     if (confirmation != "y" && confirmation != "yes")
                     {
+                        Console.WriteLine("Odustajem...\n");
                         continue;
                     }
 
@@ -319,9 +379,9 @@ namespace Knjiznica
                         date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
                     }
 
-                    catch (FormatException ex)
+                    catch
                     {
-                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!\n");
                     }
 
                     finally
@@ -334,17 +394,17 @@ namespace Knjiznica
                         else
                         {
                             AddMember(members, name, surname, date, null);
-                            Console.WriteLine("Korisnik " + name + " uspješno dodan!\n");
+                            Console.WriteLine("Član " + name + " uspješno dodan!\n");
                         }
                     }
                 }
 
                 else if (user_input == "2")
                 {
-                    Console.Write("Unesi ID ili ime korisnika: ");
+                    Console.Write("Unesite ID ili ime člana: ");
                     string input = Console.ReadLine();
 
-                    Console.Write("Jeste li sigurni da želite izbrisati korisnika " + input + " (y ili n): ");
+                    Console.Write("Želite li izbrisati člana " + input + " (y ili n): ");
                     string confirmation = Console.ReadLine();
 
                     if (confirmation != "y" && confirmation != "yes")
@@ -355,46 +415,46 @@ namespace Knjiznica
 
                     if (input == "")
                     {
-                        Console.WriteLine("ID ili ime korisnika ne može biti prazno!\n");
+                        Console.WriteLine("ID ili ime člana ne može biti prazno!\n");
                         continue;
                     }
 
                     if (RemoveMember(members, input) == 0)
                     {
-                        Console.WriteLine("Korisnik " + input + " uspješno izbrisan!\n");
+                        Console.WriteLine("Član " + input + " uspješno izbrisan!\n");
                     }
 
                     else if (RemoveMember(members, input) == 2)
                     {
-                        Console.WriteLine("Korisnik ima nevraćnu knjigu te ga nije moguće obrisati!\n");
+                        Console.WriteLine("Član " + input + " ima nevraćnu knjigu te ga nije moguće obrisati!\n");
                     }
 
                     else
                     {
-                        Console.WriteLine("Korisnik " + input + " nije pronađen!\n");
+                        Console.WriteLine("Član " + input + " nije pronađen!\n");
                     }
                 }
 
                 else if (user_input == "3")
                 {
-                    Console.Write("Unesi ID trenutnog člana: ");
+                    Console.Write("Unesite ID trenutnog člana: ");
                     string id = Console.ReadLine();
 
-                    Console.Write("Unesi novo ime ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novo ime ili 0 za ostaviti staro: ");
                     string name = Console.ReadLine();
 
-                    Console.Write("Unesi novo prezime ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novo prezime ili 0 za ostaviti staro: ");
                     string surname = Console.ReadLine();
 
-                    Console.Write("Unesi novi datum (YYYY-MM-DD) ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novi datum (YYYY-MM-DD) ili 0 za ostaviti staro: ");
                     string date_string = Console.ReadLine();
 
-                    Console.Write("Želite li urediti korisnika " + id + " (y ili n): ");
+                    Console.Write("Želite li urediti člana " + id + " (y ili n): ");
                     string confirmation = Console.ReadLine();
 
                     if (confirmation != "y" && confirmation != "yes")
                     {
-                        Console.WriteLine("Odustajem...");
+                        Console.WriteLine("Odustajem...\n");
                         continue;
                     }
 
@@ -424,9 +484,9 @@ namespace Knjiznica
                             date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
                         }
 
-                        catch (FormatException ex)
+                        catch
                         {
-                            Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                            Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!\n");
                         }
 
                         finally
@@ -440,12 +500,12 @@ namespace Knjiznica
                             {
                                 if (UpdateMember(members, id, name, surname, date) == 0)
                                 {
-                                    Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                                    Console.WriteLine("Član " + id + "uspješno ažuriran!\n");
                                 }
 
                                 else
                                 {
-                                    Console.WriteLine("Korisnik " + id + " nije pronađen!\n");
+                                    Console.WriteLine("Član " + id + " nije pronađen!\n");
                                 }
                             }
                         }
@@ -455,12 +515,12 @@ namespace Knjiznica
                     {
                         if (UpdateMember(members, id, name, surname, null) == 0)
                         {
-                            Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                            Console.WriteLine("Član " + id + "uspješno ažuriran!\n");
                         }
 
                         else
                         {
-                            Console.WriteLine("Korisnik " + id + " nije pronađen!\n");
+                            Console.WriteLine("Član " + id + " nije pronađen!\n");
                         }
                     }
                 }
@@ -552,8 +612,17 @@ namespace Knjiznica
                     Console.Write("Unesite autora: ");
                     string author = Console.ReadLine();
 
-                    Console.Write("Unesite datum posudbe: ");
+                    Console.Write("Unesite datum posudbe (YYYY-MM-DD): ");
                     string date_string = Console.ReadLine();
+
+                    Console.Write("Želiš li unijeti novu posudbu " + title + " (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        Console.WriteLine("Odustajem...\n");
+                        continue;
+                    }
 
                     if (member == "")
                     {
@@ -584,9 +653,9 @@ namespace Knjiznica
                         date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
                     }
 
-                    catch (FormatException ex)
+                    catch
                     {
-                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!\n");
                     }
 
                     finally
@@ -598,8 +667,15 @@ namespace Knjiznica
 
                         else
                         {
-                            AddBorrow(members, member, title, author, date);
-                            Console.WriteLine("Posudba je uspješno dodana! Rok za vraćanje: " + date.AddDays(21) + "\n");
+                            if (AddBorrow(members, member, title, author, date) == 0)
+                            {
+                                Console.WriteLine("Posudba je uspješno dodana! Rok za vraćanje: " + date.AddDays(21) + "\n");
+                            }
+
+                            else
+                            {
+                                Console.WriteLine("Član " + member + " nije pronađen!\n");
+                            }
                         }
                     }
                 }
@@ -612,9 +688,18 @@ namespace Knjiznica
                     Console.Write("Unesite datum vraćanja (YYYY-MM-DD): ");
                     string date_string = Console.ReadLine();
 
+                    Console.Write("Želite li vratiti posudbu " + id + " (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        Console.WriteLine("Odustajem...\n");
+                        continue;
+                    }
+
                     if (id == "")
                     {
-                        Console.WriteLine("ID korisnika ne može prazan!\n");
+                        Console.WriteLine("ID člana ne može prazan!\n");
                         continue;
                     }
 
@@ -630,9 +715,9 @@ namespace Knjiznica
                         date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
                     }
 
-                    catch (FormatException ex)
+                    catch
                     {
-                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!\n");
                     }
 
                     finally
@@ -651,7 +736,7 @@ namespace Knjiznica
                                                   ", zakasnina: " + borrow?.lateFee + "\n");
                             }
 
-                            else if (status == 1)
+                            else if (status == 2)
                             {
                                 Console.WriteLine("Knjiga je već vraćena!\n");
                             }
@@ -687,32 +772,41 @@ namespace Knjiznica
                         }
                     }
 
+                    Console.Write("Želiš li izbrisati posudbu/e (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        Console.WriteLine("Odustajem...\n");
+                        continue;
+                    }
+
                     if (RemoveBorrow(members, input) == 0)
                     {
-                        Console.WriteLine("Posudba " + input + " uspješno izbrisana!\n");
+                        Console.WriteLine("Posudba/e uspješno izbrisana/e!\n");
                     }
 
                     else
                     {
-                        Console.WriteLine("Nije bilo moguće izbrisati posudbu " + input + "!\n");
+                        Console.WriteLine("Nije bilo moguće izbrisati posudbu/e!\n");
                     }
                 }
 
                 else if (user_input == "4")
                 {
-                    Console.Write("Unesi ID trenutne posudbe: ");
+                    Console.Write("Unesite ID trenutne posudbe: ");
                     string id = Console.ReadLine();
 
-                    Console.Write("Unesi novi naslov ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novi naslov ili 0 za ostaviti staro: ");
                     string title = Console.ReadLine();
 
-                    Console.Write("Unesi novog autora ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novog autora ili 0 za ostaviti staro: ");
                     string author = Console.ReadLine();
 
-                    Console.Write("Unesi novi datum posudbe (YYYY-MM-DD) ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novi datum posudbe (YYYY-MM-DD) ili 0 za ostaviti staro: ");
                     string borrow_date_string = Console.ReadLine();
 
-                    Console.Write("Unesi novi datum vraćanja (YYYY-MM-DD) ili 0 za ostaviti staro: ");
+                    Console.Write("Unesite novi datum vraćanja (YYYY-MM-DD) ili 0 za ostaviti staro: ");
                     string return_date_string = Console.ReadLine();
 
                     Console.Write("Želite li urediti posudbu " + id + " (y ili n): ");
@@ -758,7 +852,7 @@ namespace Knjiznica
                             borrow_date = DateOnly.ParseExact(borrow_date_string, "yyyy-MM-dd");
                         }
 
-                        catch (FormatException ex)
+                        catch
                         {
                             Console.WriteLine("Točan oblik datuma posudbe je YYYY-MM-DD!\n");
                         }
@@ -771,7 +865,7 @@ namespace Knjiznica
                             return_date = DateOnly.ParseExact(return_date_string, "yyyy-MM-dd");
                         }
 
-                        catch (FormatException ex)
+                        catch
                         {
                             Console.WriteLine("Točan oblik datuma posudbe je YYYY-MM-DD!\n");
                         }
@@ -892,18 +986,20 @@ namespace Knjiznica
 
                     else
                     {
-                        Console.WriteLine("Krivi odabir!\n");
+                        Console.WriteLine("Krivi odabir!");
                     }
+
+                    Console.Write("\n");
                 }
 
                 else if (user_input == "6")
                 {
-                    Console.WriteLine("Unesite ID ili ime korinsika: ");
+                    Console.WriteLine("Unesite ID ili ime člana: ");
                     string input = Console.ReadLine();
 
                     if (input == "")
                     {
-                        Console.WriteLine("ID ili ime korisnika ne može biti prazno!\n");
+                        Console.WriteLine("ID ili ime člana ne može biti prazno!\n");
                         continue;
                     }
 
@@ -912,11 +1008,11 @@ namespace Knjiznica
 
                     if (index == -1)
                     {
-                        Console.WriteLine("Nije moguće pronaći korisnika " + input + "!\n");
+                        Console.WriteLine("Nije moguće pronaći člana " + input + "!\n");
                         continue;
                     }
 
-                    Console.WriteLine("Izvještaj za korisnika " + input + ":");
+                    Console.WriteLine("Izvještaj za člana " + input + ":");
 
                     int total = members[index].borrows.Count();
                     int totalUnreturned = members[index].borrows.Count(b => b.returnDay == null);
@@ -940,10 +1036,10 @@ namespace Knjiznica
                         Console.WriteLine($"\tKašnjenje: {largestFee.Value.lateDays} dana");
                     }
 
-                    Console.WriteLine("Unesi početni datum: ");
+                    Console.Write("Unesi početni datum (YYYY-MM-DD): ");
                     string from_date_string = Console.ReadLine();
 
-                    Console.WriteLine("Unesi završni datum: ");
+                    Console.Write("Unesi završni datum (YYYY-MM-DD): ");
                     string to_date_string = Console.ReadLine();
 
                     DateOnly from = new DateOnly();
@@ -955,9 +1051,9 @@ namespace Knjiznica
                         to = DateOnly.ParseExact(to_date_string, "yyyy-MM-dd");
                     }
 
-                    catch (FormatException ex)
+                    catch
                     {
-                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!\n");
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
                     }
 
                     finally
@@ -968,6 +1064,8 @@ namespace Knjiznica
                             Console.WriteLine($"{borrow.title} - {borrow.borrowDay}");
                         }
                     }
+
+                    Console.Write("\n");
                 }
 
                 else
@@ -1010,9 +1108,111 @@ namespace Knjiznica
         static void Main(string[] args)
         {
             List<Member> members = new List<Member>();
-            AddMember(members, "Jabuka", "Voce", new DateOnly(2000, 4, 10), null);
+            AddMember(members, "Jabuka", "Voce", new DateOnly(2009, 4, 10), null);
             AddMember(members, "Kruska", "Voce", new DateOnly(2000, 4, 1), null);
             AddMember(members, "Bundeva", "Povrce", new DateOnly(2000, 6, 2), null);
+
+            DateOnly borrow_day = new DateOnly(2026, 10, 1);
+            DateOnly? return_day = new DateOnly(2026, 10, 15);
+            int late_days = CalculateLateDays(borrow_day, return_day);
+
+            members[0].borrows.Add(
+                new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = "Na Drini cuprija",
+                    author = "Ivo Andric",
+                    borrowDay = borrow_day,
+                    returnDay = return_day,
+                    lateDays = late_days,
+                    lateFee = CalculateLateFee(late_days)
+                }
+            );
+
+            borrow_day = new DateOnly(2026, 11, 10);
+            return_day = null;
+            late_days = CalculateLateDays(borrow_day, return_day);
+
+            members[0].borrows.Add(
+                new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = "Zlocin i kazna",
+                    author = "Fjodor Dostojevski",
+                    borrowDay = borrow_day,
+                    returnDay = return_day,
+                    lateDays = late_days,
+                    lateFee = CalculateLateFee(late_days)
+                }
+            );
+
+            borrow_day = new DateOnly(2026, 10, 20);
+            return_day = new DateOnly(2026, 10, 25);
+            late_days = CalculateLateDays(borrow_day, return_day);
+
+            members[1].borrows.Add(
+                new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = "Mali princ",
+                    author = "Antoine de Saint-Exupery",
+                    borrowDay = borrow_day,
+                    returnDay = return_day,
+                    lateDays = late_days,
+                    lateFee = CalculateLateFee(late_days)
+                }
+            );
+
+            borrow_day = new DateOnly(2026, 11, 12);
+            return_day = null;
+            late_days = CalculateLateDays(borrow_day, return_day);
+
+            members[1].borrows.Add(
+                new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = "1984",
+                    author = "George Orwell",
+                    borrowDay = borrow_day,
+                    returnDay = return_day,
+                    lateDays = late_days,
+                    lateFee = CalculateLateFee(late_days)
+                }
+            );
+
+            borrow_day = new DateOnly(2026, 10, 5);
+            return_day = new DateOnly(2026, 10, 20);
+            late_days = CalculateLateDays(borrow_day, return_day);
+
+            members[2].borrows.Add(
+                new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = "Proces",
+                    author = "Franz Kafka",
+                    borrowDay = borrow_day,
+                    returnDay = return_day,
+                    lateDays = late_days,
+                    lateFee = CalculateLateFee(late_days)
+                }
+            );
+
+            borrow_day = new DateOnly(2026, 10, 1);
+            return_day = new DateOnly(2026, 10, 25);
+            late_days = CalculateLateDays(borrow_day, return_day);
+
+            members[2].borrows.Add(
+                new Borrow
+                {
+                    id = Guid.NewGuid(),
+                    title = "Stranac",
+                    author = "Albert Camus",
+                    borrowDay = borrow_day,
+                    returnDay = return_day,
+                    lateDays = late_days,
+                    lateFee = CalculateLateFee(late_days)
+                }
+            );
 
             Console.WriteLine("Evidencija posudbi u knjižnici\n");
 
