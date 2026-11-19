@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.Metrics;
+using System.Drawing;
 using System.Numerics;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -121,6 +122,24 @@ namespace Knjiznica
                         continue;
                     }
 
+                    if (name == "")
+                    {
+                        Console.WriteLine("Ime ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (surname == "")
+                    {
+                        Console.WriteLine("Prezime ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (date_string == "")
+                    {
+                        Console.WriteLine("Datum rođenja ne može biti prazan!\n");
+                        continue;
+                    }
+
                     DateOnly date = new DateOnly();
                     try
                     {
@@ -134,15 +153,22 @@ namespace Knjiznica
 
                     finally
                     {
-                        AddMember(members, name, surname, date, null);
-                    }
+                        if (date > DateOnly.FromDateTime(DateTime.Today))
+                        {
+                            Console.WriteLine("Datum rođenja ne može biti u budućnosti!\n");
+                        }
 
-                    Console.WriteLine("Korisnik " + name + " uspješno dodan!\n");
+                        else
+                        {
+                            AddMember(members, name, surname, date, null);
+                            Console.WriteLine("Korisnik " + name + " uspješno dodan!\n");
+                        }
+                    }
                 }
 
                 else if (user_input == "2")
                 {
-                    Console.Write("1 - po ID-u | 2 - po imenu i prezimenu ([prezime] [ime])");
+                    Console.Write("1 - po ID-u | 2 - po imenu i prezimenu ([prezime] [ime]): ");
                     string choice = Console.ReadLine();
 
                     Console.Write("Unesi: ");
@@ -153,21 +179,26 @@ namespace Knjiznica
 
                     if (confirmation != "y" && confirmation != "yes")
                     {
-                        Console.Write("Odustajem...");
+                        Console.WriteLine("Odustajem...\n");
+                        continue;
+                    }
+
+                    if (input == "")
+                    {
+                        Console.WriteLine("ID ili ime korisnika ne može biti prazno!\n");
                         continue;
                     }
 
                     if (choice == "1" || choice == "2")
                     {
                         RemoveMember(members, input, choice);
+                        Console.WriteLine("Korisnik " + input + " uspješno izbrisan!\n");
                     }
 
                     else
                     {
-                        Console.WriteLine("Krivi odabir!");
+                        Console.WriteLine("Krivi odabir!\n");
                     }
-
-                    Console.WriteLine("Korisnik " + input + " uspješno izbrisan!\n");
                 }
 
                 else if (user_input == "3")
@@ -193,6 +224,24 @@ namespace Knjiznica
                         continue;
                     }
 
+                    if (name == "")
+                    {
+                        Console.WriteLine("Ime ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (surname == "")
+                    {
+                        Console.WriteLine("Prezime ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (date_string == "")
+                    {
+                        Console.WriteLine("Datum rođenja ne može biti prazan!\n");
+                        continue;
+                    }
+
                     if (date_string != "0")
                     {
                         DateOnly date = new DateOnly();
@@ -208,16 +257,24 @@ namespace Knjiznica
 
                         finally
                         {
-                            UpdateMember(members, id, name, surname, date);
+                            if (date > DateOnly.FromDateTime(DateTime.Today))
+                            {
+                                Console.WriteLine("Datum rođenja ne može biti u budućnsoti!\n");
+                            }
+
+                            else
+                            {
+                                UpdateMember(members, id, name, surname, date);
+                                Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                            }
                         }
                     }
 
                     else
                     {
                         UpdateMember(members, id, name, surname, null);
+                        Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
                     }
-
-                    Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
                 }
 
                 else if (user_input == "4")
