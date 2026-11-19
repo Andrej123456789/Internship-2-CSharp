@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Knjiznica
 {
@@ -209,6 +210,40 @@ namespace Knjiznica
 
                     return 0;
                 }
+            }
+        }
+
+        static int UpdateBorrow(List<Member> members, string id, string title, string author, DateOnly? borrowDate, DateOnly? returnDate)
+        {
+            Guid borrowId = new Guid(id);
+            var result = members
+                .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
+                .FirstOrDefault(x => x.borrow.id == borrowId);
+
+            if (result != null && result.borrow.id == borrowId)
+            {
+                var member = result.member;
+                var borrow = result.borrow;
+
+                borrow.title = title;
+                borrow.author = author;
+
+                if (borrowDate != null)
+                {
+                    borrow.borrowDay = (DateOnly)borrowDate;
+                }
+
+                if (returnDate != null)
+                {
+                    borrow.returnDay = (DateOnly)returnDate;
+                }
+
+                return 0;
+            }
+
+            else
+            {
+                return 1;
             }
         }
 
@@ -655,7 +690,92 @@ namespace Knjiznica
 
                 else if (user_input == "4")
                 {
+                    Console.Write("Unesi ID trenutne posudbe: ");
+                    string id = Console.ReadLine();
 
+                    Console.Write("Unesi novi naslov ili 0 za ostaviti staro: ");
+                    string title = Console.ReadLine();
+
+                    Console.Write("Unesi novog autora ili 0 za ostaviti staro: ");
+                    string author = Console.ReadLine();
+
+                    Console.Write("Unesi novi datum posudbe (YYYY-MM-DD) ili 0 za ostaviti staro: ");
+                    string borrow_date_string = Console.ReadLine();
+
+                    Console.Write("Unesi novi datum vraćanja (YYYY-MM-DD) ili 0 za ostaviti staro: ");
+                    string return_date_string = Console.ReadLine();
+
+                    Console.Write("Želite li urediti posudbu " + id + " (y ili n): ");
+                    string confirmation = Console.ReadLine();
+
+                    if (confirmation != "y" && confirmation != "yes")
+                    {
+                        Console.WriteLine("Odustajem...\n");
+                        continue;
+                    }
+
+                    if (title == "")
+                    {
+                        Console.WriteLine("Ime ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (author == "")
+                    {
+                        Console.WriteLine("Prezime ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (borrow_date_string == "")
+                    {
+                        Console.WriteLine("Datum posudbe ne može biti prazan!\n");
+                        continue;
+                    }
+
+                    if (return_date_string == "")
+                    {
+                        Console.WriteLine("Datum vraćanja ne može biti prazan!\n");
+                        continue;
+                    }
+
+                    DateOnly? borrow_date = null;
+                    DateOnly? return_date = null;
+
+                    if (borrow_date_string != "0")
+                    {
+                        try
+                        {
+                            borrow_date = DateOnly.ParseExact(borrow_date_string, "yyyy-MM-dd");
+                        }
+
+                        catch (FormatException ex)
+                        {
+                            Console.WriteLine("Točan oblik datuma posudbe je YYYY-MM-DD!\n");
+                        }
+                    }
+
+                    if (return_date_string != "0")
+                    {
+                        try
+                        {
+                            return_date = DateOnly.ParseExact(return_date_string, "yyyy-MM-dd");
+                        }
+
+                        catch (FormatException ex)
+                        {
+                            Console.WriteLine("Točan oblik datuma posudbe je YYYY-MM-DD!\n");
+                        }
+                    }
+
+                    if (UpdateBorrow(members, id,title, author, borrow_date, return_date) == 0)
+                    {
+                        Console.WriteLine("Posudba " + id + " uspješno izmijenjena!\n");
+                    }
+
+                    else
+                    {
+                        Console.WriteLine("Posudba " + id + " nije pronađena!\n");
+                    }
                 }
 
                 else if (user_input == "5")
