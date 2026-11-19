@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.Metrics;
 using System.Drawing;
 using System.Numerics;
+using System.Xml.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Knjiznica
@@ -15,7 +16,7 @@ namespace Knjiznica
             public DateOnly borrowDay;
             public DateOnly? returnDay;
             public int lateDays;
-            public int lateFee;
+            public double lateFee;
         };
 
         struct Member
@@ -39,28 +40,21 @@ namespace Knjiznica
             members.Add(member);
         }
 
-        static void RemoveMember(List<Member> members, string input, string choice)
+        static int RemoveMember(List<Member> members, string input)
         {
-            if (choice == "1")
+            Guid.TryParse(input, out Guid guid);
+            int index = members.FindIndex(o => o.id == guid || o.name == input);
+
+            if (index != -1)
             {
-                int index = members.FindIndex(o => o.id == new Guid(input));
-                if (index != -1)
-                {
-                    members.RemoveAt(index);
-                }
+                members.RemoveAt(index);
+                return 0;
             }
 
-            else
-            {
-                int index = members.FindIndex(o => o.name == input);
-                if (index != -1)
-                {
-                    members.RemoveAt(index);
-                }
-            }
+            return 1;
         }
 
-        static void UpdateMember(List<Member> members, string id, string name, string surname, DateOnly? date)
+        static int UpdateMember(List<Member> members, string id, string name, string surname, DateOnly? date)
         {
             int index = members.FindIndex(o => o.id == new Guid(id));
             if (index != -1)
@@ -81,6 +75,41 @@ namespace Knjiznica
                 {
                     member.birthDay = (DateOnly)date;
                 }
+
+                return 0;
+            }
+
+            return 1;
+        }
+
+        static int CalculateLateDays(DateOnly returnDay)
+        {
+            int result = DateOnly.FromDateTime(DateTime.Today).Day - returnDay.Day;
+            return result > 0 ? result : 0;
+        }
+
+        static double CalculateLateFee(int lateDays)
+        {
+            return lateDays * 0.50;
+        }
+
+        static void AddBorrow(List<Member> members, string member, string title, string author, DateOnly date)
+        {
+            Guid.TryParse(member, out Guid guid);
+            int index = members.FindIndex(o => o.id == guid || o.name == member);
+
+            if (index != -1)
+            {
+                Borrow borrow = new Borrow();
+                borrow.id = Guid.NewGuid();
+                borrow.title = title;
+                borrow.author = author;
+                borrow.borrowDay = date;
+                borrow.returnDay = date.AddDays(21);
+                borrow.lateDays = CalculateLateDays((DateOnly)borrow.returnDay);
+                borrow.lateFee = CalculateLateFee(borrow.lateDays);
+
+                members[index].borrows.Add(borrow);
             }
         }
 
@@ -168,10 +197,7 @@ namespace Knjiznica
 
                 else if (user_input == "2")
                 {
-                    Console.Write("1 - po ID-u | 2 - po imenu i prezimenu ([prezime] [ime]): ");
-                    string choice = Console.ReadLine();
-
-                    Console.Write("Unesi: ");
+                    Console.Write("Unesi ID ili ime korisnika: ");
                     string input = Console.ReadLine();
 
                     Console.Write("Jeste li sigurni da želite izbrisati korisnika " + input + " (y ili n): ");
@@ -189,15 +215,14 @@ namespace Knjiznica
                         continue;
                     }
 
-                    if (choice == "1" || choice == "2")
+                    if (RemoveMember(members, input) == 0)
                     {
-                        RemoveMember(members, input, choice);
                         Console.WriteLine("Korisnik " + input + " uspješno izbrisan!\n");
                     }
 
                     else
                     {
-                        Console.WriteLine("Krivi odabir!\n");
+                        Console.WriteLine("Korisnik " + input + " nije pronađen!\n");
                     }
                 }
 
@@ -264,16 +289,30 @@ namespace Knjiznica
 
                             else
                             {
-                                UpdateMember(members, id, name, surname, date);
-                                Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                                if (UpdateMember(members, id, name, surname, date) == 0)
+                                {
+                                    Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                                }
+
+                                else
+                                {
+                                    Console.WriteLine("Korisnik " + id + " nije pronađen!\n");
+                                }
                             }
                         }
                     }
 
                     else
                     {
-                        UpdateMember(members, id, name, surname, null);
-                        Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                        if (UpdateMember(members, id, name, surname, null) == 0)
+                        {
+                            Console.WriteLine("Korisnik " + id + "uspješno ažuriran!\n");
+                        }
+
+                        else
+                        {
+                            Console.WriteLine("Korisnik " + id + " nije pronađen!\n");
+                        }
                     }
                 }
 
@@ -332,7 +371,7 @@ namespace Knjiznica
             }
         }
 
-        static void PrintBorrowMenu()
+        static void PrintBorrowMenu(List<Member> members)
         {
             Console.WriteLine("1 - Unos nove posudbe");
             Console.WriteLine("2 - Vraćanje knjige");
@@ -355,7 +394,65 @@ namespace Knjiznica
 
                 else if (user_input == "1")
                 {
+                    Console.Write("Odaberite člana: ");
+                    string member = Console.ReadLine();
 
+                    Console.Write("Unesite naslov: ");
+                    string title = Console.ReadLine();
+
+                    Console.Write("Unesite autora: ");
+                    string author = Console.ReadLine();
+
+                    Console.Write("Unesite datum posudbe: ");
+                    string date_string = Console.ReadLine();
+
+                    if (member == "")
+                    {
+                        Console.WriteLine("Ime ili ID člana ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (title == "")
+                    {
+                        Console.WriteLine("Naslov ne može biti prazan!\n");
+                        continue;
+                    }
+
+                    if (author == "")
+                    {
+                        Console.WriteLine("Ime autora ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    if (date_string == "")
+                    {
+                        Console.WriteLine("Datum ne može biti prazan!\n");
+                    }
+
+                    DateOnly date = new DateOnly();
+                    try
+                    {
+                        date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
+                    }
+
+                    catch (FormatException ex)
+                    {
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                    }
+
+                    finally
+                    {
+                        if (date != DateOnly.FromDateTime(DateTime.Today))
+                        {
+                            Console.WriteLine("Datum posudbe mora biti danas!\n");
+                        }
+
+                        else
+                        {
+                            AddBorrow(members, member, title, author, date);
+                            Console.WriteLine("Posudba je uspješno dodana! Rok za vraćanje: " + date.AddDays(21) + "\n");
+                        }
+                    }
                 }
 
                 else if (user_input == "2")
@@ -410,7 +507,7 @@ namespace Knjiznica
 
                 else if (user_input == "2")
                 {
-                    PrintBorrowMenu();
+                    PrintBorrowMenu(members);
                 }
 
                 else
