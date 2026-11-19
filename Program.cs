@@ -43,8 +43,26 @@ namespace Knjiznica
 
             if (index != -1)
             {
-                members.RemoveAt(index);
-                return 0;
+                bool flag = false;
+                foreach (Borrow borrow in members[index].borrows)
+                {
+                    if (borrow.returnDay == null)
+                    {
+                        flag = true;
+                        break;
+                    }
+                }
+
+                if (flag == false)
+                {
+                    members.RemoveAt(index);
+                    return 0;
+                }
+
+                else
+                {
+                    return 2;
+                }
             }
 
             return 1;
@@ -108,7 +126,7 @@ namespace Knjiznica
                 members[index].borrows.Add(borrow);
             }
         }
-        static Borrow? ReturnBorrow(List<Member> members, string id, DateOnly date)
+        static (int, Borrow?) ReturnBorrow(List<Member> members, string id, DateOnly date)
         {
             Guid borrowId = new Guid(id);
             var result = members
@@ -120,22 +138,27 @@ namespace Knjiznica
                 var member = result.member;
                 var borrow = result.borrow;
 
+                if (borrow.returnDay != null)
+                {
+                    return (2, null);
+                }
+
                 borrow.returnDay = date;
                 borrow.lateDays = CalculateLateDays(borrow.borrowDay, borrow.returnDay);
                 borrow.lateFee = CalculateLateFee(borrow.lateDays);
 
-                return borrow;
+                return (0, borrow);
             }
 
             else
             {
-                return null;
+                return (1, null);
             }
         }
 
-        static int RemoveBorrow(List<Member> members, string id)
+        static int RemoveBorrow(List<Member> members, string input)
         {
-            Guid borrowId = new Guid(id);
+            Guid borrowId = new Guid(input);
             var result = members
                 .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
                 .FirstOrDefault(x => x.borrow.id == borrowId);
@@ -151,7 +174,41 @@ namespace Knjiznica
 
             else
             {
-                return 1;
+                Guid.TryParse(input, out Guid guid);
+                int index = members.FindIndex(o => o.id == guid || o.name == input);
+
+                if (index != -1)
+                {
+                    members[index].borrows.Clear();
+                    return 0;
+                }
+
+                else
+                {
+                    foreach (Member member in members)
+                    {
+                        foreach (Borrow borrow in member.borrows)
+                        {
+                            int fee = 0;
+                            try
+                            {
+                                fee = Convert.ToInt32(input); 
+                            }
+
+                            catch (Exception ex)
+                            {
+                                return 1;
+                            }
+
+                            if (borrow.lateFee > fee)
+                            {
+                                member.borrows.Remove(borrow);
+                            }
+                        }
+                    }
+
+                    return 0;
+                }
             }
         }
 
@@ -260,6 +317,11 @@ namespace Knjiznica
                     if (RemoveMember(members, input) == 0)
                     {
                         Console.WriteLine("Korisnik " + input + " uspješno izbrisan!\n");
+                    }
+
+                    else if (RemoveMember(members, input) == 2)
+                    {
+                        Console.WriteLine("Korisnik ima nevraćnu knjigu te ga nije moguće obrisati!\n");
                     }
 
                     else
@@ -537,11 +599,16 @@ namespace Knjiznica
 
                         else
                         {
-                            Borrow? borrow = ReturnBorrow(members, id, date);
-                            if (borrow != null)
+                            (int status, Borrow? borrow) = ReturnBorrow(members, id, date);
+                            if (status == 0)
                             {
                                 Console.WriteLine("Knjiga vraćena! Kašnjenje: " + borrow?.lateDays +
                                                   ", zakasnina: " + borrow?.lateFee + "\n");
+                            }
+
+                            else if (status == 1)
+                            {
+                                Console.WriteLine("Knjiga je već vraćena!\n");
                             }
 
                             else
@@ -554,23 +621,35 @@ namespace Knjiznica
 
                 else if (user_input == "3")
                 {
-                    Console.Write("Unesite ID posudbe: ");
-                    string id = Console.ReadLine();
+                    Console.Write("Unesite ID posudbe (X za sljedeću opciju): ");
+                    string input = Console.ReadLine();
 
-                    if (id == "")
+                    if (input == "" || input == "X" || input == "x")
                     {
-                        Console.WriteLine("ID korisnika ne može prazan!\n");
-                        continue;
+                        Console.Write("Unesite ID ili ime korisnika za brisanje svih posudbi (X za sljedeću opciju): ");
+                        input = Console.ReadLine();
+
+                        if (input == "" || input == "X" || input == "x")
+                        {
+                            Console.Write("Unesite iznos zakasnine za brisanje svih posudbi sa zakasninom većom od tog iznosa: ");
+                            input = Console.ReadLine();
+
+                            if (input == "")
+                            {
+                                Console.WriteLine("Opcija mora biti odabrana!\n");
+                                continue;
+                            }
+                        }
                     }
 
-                    if (RemoveBorrow(members, id) == 0)
+                    if (RemoveBorrow(members, input) == 0)
                     {
-                        Console.WriteLine("Posudba " + id + " uspješno izbrisana!\n");
+                        Console.WriteLine("Posudba " + input + " uspješno izbrisana!\n");
                     }
 
                     else
                     {
-                        Console.WriteLine("Posudba " + id + " nije pronađena!\n");
+                        Console.WriteLine("Nije bilo moguće izbrisati posudbu " + input + "!\n");
                     }
                 }
 
