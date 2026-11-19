@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Diagnostics.Metrics;
+using System.Linq;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Knjiznica
@@ -245,6 +246,15 @@ namespace Knjiznica
             {
                 return 1;
             }
+        }
+
+        static void PrintBorrow(Borrow borrow)
+        {
+            Console.WriteLine("[" + borrow.id + "] \"" + borrow.title + "\" - " + borrow.author +
+                              " | posuđeno: " + borrow.borrowDay +
+                              " | vraćeno: " + (borrow.returnDay == null ? "nije vraćeno" : borrow.returnDay.ToString()) +
+                              " | kašnjenje: " + borrow.lateDays +
+                              " | zakasnina: " + borrow.lateFee + "€");
         }
 
         static void PrintMembersMenu(List<Member> members)
@@ -780,12 +790,184 @@ namespace Knjiznica
 
                 else if (user_input == "5")
                 {
-                    
+                    Console.WriteLine("1 - sve posudbe redom");
+                    Console.WriteLine("2 - sve posudbe sortirane uzlazno (2u) ili silazno (2s)");
+                    Console.WriteLine("3 - sve posudbe sortirane po zakasnini uzlazno (3u) ili silazno (3s)");
+                    Console.WriteLine("4 - sve trenutno nevraćene posudbe");
+                    Console.WriteLine("5 - pretraga posudbi po dijelu naslova ili autora");
+                    Console.WriteLine("6 - posudbe grupirane po mjesecu posudbe");
+                    Console.Write("Unesite odabir: ");
+
+                    string choice = Console.ReadLine();
+                    if (choice == "1")
+                    {
+                        foreach (Member member in members)
+                        {
+                            foreach (Borrow borrow in member.borrows)
+                            {
+                                PrintBorrow(borrow);
+                            }
+                        }
+                    }
+
+                    else if (choice == "2u")
+                    {
+                        var borrows = members.SelectMany(m => m.borrows).OrderBy(b => b.borrowDay);
+                        foreach (Borrow borrow in borrows)
+                        {
+                            PrintBorrow(borrow);
+                        }
+                    }
+
+                    else if (choice == "2s")
+                    {
+                        var borrows = members.SelectMany(m => m.borrows).OrderByDescending(b => b.borrowDay);
+                        foreach (Borrow borrow in borrows)
+                        {
+                            PrintBorrow(borrow);
+                        }
+                    }
+
+                    else if (choice == "3u")
+                    {
+                        var borrows = members.SelectMany(m => m.borrows).OrderBy(b => b.lateDays);
+                        foreach (Borrow borrow in borrows)
+                        {
+                            PrintBorrow(borrow);
+                        }
+                    }
+
+                    else if (choice == "3s")
+                    {
+                        var borrows = members.SelectMany(m => m.borrows).OrderByDescending(b => b.lateDays);
+                        foreach (Borrow borrow in borrows)
+                        {
+                            PrintBorrow(borrow);
+                        }
+                    }
+
+                    else if (choice == "4")
+                    {
+                        var borrows = members.SelectMany(m => m.borrows).Where(b => b.returnDay == null);
+                        foreach (Borrow borrow in borrows)
+                        {
+                            PrintBorrow(borrow);
+                        }
+                    }
+
+                    else if (choice == "5")
+                    {
+                        Console.Write("Unesite dio naslova ili autora: ");
+                        string search = Console.ReadLine();
+
+                        var borrows = members.SelectMany(m => m.borrows)
+                                             .Where(b =>
+                                                    b.title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                                                    b.author.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+                        foreach (Borrow borrow in borrows)
+                        {
+                            PrintBorrow(borrow);
+                        }
+                    }
+
+                    else if (choice == "6")
+                    {
+                        var borrows = members.SelectMany(m => m.borrows)
+                                             .GroupBy(b => new { b.borrowDay.Year, b.borrowDay.Month })
+                                             .OrderBy(g => g.Key.Year)
+                                             .ThenBy(g => g.Key.Month);
+
+                        foreach (var group in borrows)
+                        {
+                            Console.WriteLine("\n" + group.Key.Month + "/" + group.Key.Year);
+                            Console.WriteLine("-------------------------");
+
+                            foreach (Borrow borrow in group)
+                            {
+                                PrintBorrow(borrow);
+                            }
+                        }
+                    }
+
+                    else
+                    {
+                        Console.WriteLine("Krivi odabir!\n");
+                    }
                 }
 
                 else if (user_input == "6")
                 {
+                    Console.WriteLine("Unesite ID ili ime korinsika: ");
+                    string input = Console.ReadLine();
 
+                    if (input == "")
+                    {
+                        Console.WriteLine("ID ili ime korisnika ne može biti prazno!\n");
+                        continue;
+                    }
+
+                    Guid.TryParse(input, out Guid guid);
+                    int index = members.FindIndex(o => o.id == guid || o.name == input);
+
+                    if (index == -1)
+                    {
+                        Console.WriteLine("Nije moguće pronaći korisnika " + input + "!\n");
+                        continue;
+                    }
+
+                    Console.WriteLine("Izvještaj za korisnika " + input + ":");
+
+                    int total = members[index].borrows.Count();
+                    int totalUnreturned = members[index].borrows.Count(b => b.returnDay == null);
+                    Console.WriteLine($"Ukupan broj posudbi: {total} | Ukupan broj nevraćenih knjiga: {totalUnreturned}");
+
+                    double totalFee = members[index].borrows.Sum(b => b.lateFee);
+                    Console.WriteLine($"Ukupna zakasnina: {totalFee}");
+
+                    var returned = members[index].borrows.Where(b => b.returnDay != null).ToList();
+                    double average = returned.Count > 0
+                        ? returned.Average(b => b.returnDay.Value.DayNumber - b.borrowDay.DayNumber)
+                        : 0;
+                    Console.WriteLine($"Prosječno trajanje posudbe u danima: {returned}");
+
+                    Borrow? largestFee = members[index].borrows.OrderByDescending(b => b.lateDays).FirstOrDefault();
+                    if (largestFee != null)
+                    {
+                        Console.WriteLine("Najveća zakasnina: ");
+                        Console.WriteLine($"\tTitle: {largestFee.Value.title}");
+                        Console.WriteLine($"\tAuthor: {largestFee.Value.author}");
+                        Console.WriteLine($"\tKašnjenje: {largestFee.Value.lateDays} dana");
+                    }
+
+                    Console.WriteLine("Unesi početni datum: ");
+                    string from_date_string = Console.ReadLine();
+
+                    Console.WriteLine("Unesi završni datum: ");
+                    string to_date_string = Console.ReadLine();
+
+                    DateOnly from = new DateOnly();
+                    DateOnly to = new DateOnly();
+
+                    try
+                    {
+                        from = DateOnly.ParseExact(from_date_string, "yyyy-MM-dd");
+                        to = DateOnly.ParseExact(to_date_string, "yyyy-MM-dd");
+                    }
+
+                    catch (FormatException ex)
+                    {
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!\n");
+                    }
+
+                    finally
+                    {
+                        var borrows = members[index].borrows.Where(b => b.borrowDay >= from && b.borrowDay <= to).ToList();
+                        foreach (var borrow in borrows)
+                        {
+                            Console.WriteLine($"{borrow.title} - {borrow.borrowDay}");
+                        }
+                    }
                 }
 
                 else
