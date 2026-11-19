@@ -1,8 +1,4 @@
-﻿using System.Diagnostics.Metrics;
-using System.Drawing;
-using System.Numerics;
-using System.Xml.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿using System.Linq;
 
 namespace Knjiznica
 {
@@ -82,9 +78,9 @@ namespace Knjiznica
             return 1;
         }
 
-        static int CalculateLateDays(DateOnly returnDay)
+        static int CalculateLateDays(DateOnly borrowDay, DateOnly? returnDay)
         {
-            int result = DateOnly.FromDateTime(DateTime.Today).Day - returnDay.Day;
+            int result = (returnDay?.Day ?? 0) - borrowDay.AddDays(21).Day;
             return result > 0 ? result : 0;
         }
 
@@ -105,11 +101,57 @@ namespace Knjiznica
                 borrow.title = title;
                 borrow.author = author;
                 borrow.borrowDay = date;
-                borrow.returnDay = date.AddDays(21);
-                borrow.lateDays = CalculateLateDays((DateOnly)borrow.returnDay);
+                borrow.returnDay = null;
+                borrow.lateDays = CalculateLateDays(borrow.borrowDay, borrow.returnDay);
                 borrow.lateFee = CalculateLateFee(borrow.lateDays);
 
                 members[index].borrows.Add(borrow);
+            }
+        }
+        static Borrow? ReturnBorrow(List<Member> members, string id, DateOnly date)
+        {
+            Guid borrowId = new Guid(id);
+            var result = members
+                .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
+                .FirstOrDefault(x => x.borrow.id == borrowId);
+
+            if (result != null && result.borrow.id == borrowId)
+            {
+                var member = result.member;
+                var borrow = result.borrow;
+
+                borrow.returnDay = date;
+                borrow.lateDays = CalculateLateDays(borrow.borrowDay, borrow.returnDay);
+                borrow.lateFee = CalculateLateFee(borrow.lateDays);
+
+                return borrow;
+            }
+
+            else
+            {
+                return null;
+            }
+        }
+
+        static int RemoveBorrow(List<Member> members, string id)
+        {
+            Guid borrowId = new Guid(id);
+            var result = members
+                .SelectMany(m => m.borrows, (member, borrow) => new { member, borrow })
+                .FirstOrDefault(x => x.borrow.id == borrowId);
+
+            if (result != null && result.borrow.id == borrowId)
+            {
+                var member = result.member;
+                var borrow = result.borrow;
+
+                member.borrows.Remove(borrow);
+                return 0;
+            }
+
+            else
+            {
+                return 1;
             }
         }
 
@@ -442,9 +484,9 @@ namespace Knjiznica
 
                     finally
                     {
-                        if (date != DateOnly.FromDateTime(DateTime.Today))
+                        if (date > DateOnly.FromDateTime(DateTime.Today))
                         {
-                            Console.WriteLine("Datum posudbe mora biti danas!\n");
+                            Console.WriteLine("Datum posudbe ne može biti u budućnosti!\n");
                         }
 
                         else
@@ -457,12 +499,79 @@ namespace Knjiznica
 
                 else if (user_input == "2")
                 {
+                    Console.Write("Unesite ID posudbe: ");
+                    string id = Console.ReadLine();
 
+                    Console.Write("Unesite datum vraćanja (YYYY-MM-DD): ");
+                    string date_string = Console.ReadLine();
+
+                    if (id == "")
+                    {
+                        Console.WriteLine("ID korisnika ne može prazan!\n");
+                        continue;
+                    }
+
+                    if (date_string == "")
+                    {
+                        Console.WriteLine("Datum vraćanja ne može biti prazan!\n");
+                        continue;
+                    }
+
+                    DateOnly date = new DateOnly();
+                    try
+                    {
+                        date = DateOnly.ParseExact(date_string, "yyyy-MM-dd");
+                    }
+
+                    catch (FormatException ex)
+                    {
+                        Console.WriteLine("Točan oblik datuma je YYYY-MM-DD!");
+                    }
+
+                    finally
+                    {
+                        if (date > DateOnly.FromDateTime(DateTime.Today))
+                        {
+                            Console.WriteLine("Datum vraćanja ne može biti u budućnosti!\n");
+                        }
+
+                        else
+                        {
+                            Borrow? borrow = ReturnBorrow(members, id, date);
+                            if (borrow != null)
+                            {
+                                Console.WriteLine("Knjiga vraćena! Kašnjenje: " + borrow?.lateDays +
+                                                  ", zakasnina: " + borrow?.lateFee + "\n");
+                            }
+
+                            else
+                            {
+                                Console.WriteLine("Posudba " + id + " nije pronađena!\n");
+                            }
+                        }
+                    }
                 }
 
                 else if (user_input == "3")
                 {
-                    
+                    Console.Write("Unesite ID posudbe: ");
+                    string id = Console.ReadLine();
+
+                    if (id == "")
+                    {
+                        Console.WriteLine("ID korisnika ne može prazan!\n");
+                        continue;
+                    }
+
+                    if (RemoveBorrow(members, id) == 0)
+                    {
+                        Console.WriteLine("Posudba " + id + " uspješno izbrisana!\n");
+                    }
+
+                    else
+                    {
+                        Console.WriteLine("Posudba " + id + " nije pronađena!\n");
+                    }
                 }
 
                 else if (user_input == "4")
