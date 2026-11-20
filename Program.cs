@@ -1075,6 +1075,130 @@
             }
         }
 
+        static void PrintStatisticsMenu(List<Member> members)
+        {
+            Console.WriteLine("1 - Član s najvećom ukupnom zakasninom");
+            Console.WriteLine("2 - Član s najviše posudbi");
+            Console.WriteLine("3 - Najposuđivaniji naslov");
+            Console.WriteLine("4 - Ukupan iznos zakasnina svih članova");
+            Console.WriteLine("5 - Graf broja posudbi po mjesecu");
+            Console.WriteLine("0 - Povratak na glavni izbornik");
+
+            while (true)
+            {
+                Console.Write("[Izbornik statistike] Odabir: ");
+                string user_input = Console.ReadLine();
+
+                Console.Write("\n");
+                if (user_input == "0")
+                {
+                    break;
+                }
+
+                else if (user_input == "1")
+                {
+                    if (members.Count == 0)
+                    {
+                        Console.WriteLine("Nema upisanih članova!\n");
+                        continue;
+                    }
+
+                    var member = members
+                        .Select(m => new
+                        {
+                            Member = m,
+                            TotalLateFee = m.borrows.Sum(b => b.lateFee)
+                        })
+                        .OrderByDescending(m => m.TotalLateFee)
+                        .First();
+
+                    Console.WriteLine($"Član s najvećom ukupnom zakasninom: {member.Member.name} " +
+                        $"{member.Member.surname} ({member.TotalLateFee:F2} €)\n");
+                }
+
+                else if (user_input == "2")
+                {
+                    if (members.Count == 0)
+                    {
+                        Console.WriteLine("Nema upisanih članova!\n");
+                        continue;
+                    }
+
+                    var member = members
+                        .OrderByDescending(m => m.borrows.Count)
+                        .First();
+
+                    Console.WriteLine($"Član s najviše posudbi: {member.name} {member.surname} ({member.borrows.Count})\n");
+                }
+
+                else if (user_input == "3")
+                {
+                    var mostBorrowed = members
+                        .SelectMany(m => m.borrows)
+                        .GroupBy(b => b.title)
+                        .Select(g => new
+                        {
+                            Title = g.Key,
+                            Count = g.Count()
+                        })
+                        .OrderByDescending(g => g.Count)
+                        .FirstOrDefault();
+
+                    if (mostBorrowed == null)
+                    {
+                        Console.WriteLine("Nema evidentiranih posudbi!\n");
+                        continue;
+                    }
+
+                    Console.WriteLine($"Najposuđivaniji naslov: {mostBorrowed.Title} ({mostBorrowed.Count})\n");
+                }
+
+                else if (user_input == "4")
+                {
+                    double totalLateFees = members
+                        .SelectMany(m => m.borrows)
+                        .Sum(b => b.lateFee);
+
+                    Console.WriteLine($"Ukupan iznos zakasnina svih članova: {totalLateFees:F2} €\n");
+                }
+
+                else if (user_input == "5")
+                {
+                    var monthlyBorrows = members
+                        .SelectMany(m => m.borrows)
+                        .GroupBy(b => new
+                        {
+                            b.borrowDay.Year,
+                            b.borrowDay.Month
+                        })
+                        .OrderBy(g => g.Key.Year)
+                        .ThenBy(g => g.Key.Month);
+
+                    Console.WriteLine("Broj posudbi po mjesecu:\n");
+
+                    foreach (var month in monthlyBorrows)
+                    {
+                        string monthName = new DateTime(
+                            month.Key.Year,
+                            month.Key.Month,
+                            1
+                        ).ToString("MMMM yyyy");
+
+                        Console.WriteLine(
+                            $"{monthName,-20} {new string('*', month.Count())} ({month.Count()})"
+                        );
+                    }
+
+                    Console.Write("\n");
+                }
+
+                else
+                {
+                    Console.WriteLine("Krivi unos!\n");
+                }
+            }
+        }
+        
         static void MainMenu(List<Member> members)
         {
             while (true)
@@ -1096,6 +1220,11 @@
                 else if (user_input == "2")
                 {
                     PrintBorrowMenu(members);
+                }
+
+                else if (user_input == "3")
+                {
+                    PrintStatisticsMenu(members);
                 }
 
                 else
@@ -1218,6 +1347,7 @@
 
             Console.WriteLine("1 - Članovi");
             Console.WriteLine("2 - Posudbe");
+            Console.WriteLine("3 - Statistika");
             Console.WriteLine("0 - Izlaz iz aplikacije");
 
             MainMenu(members);
